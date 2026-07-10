@@ -7,7 +7,7 @@ import {
   ChevronLeft, ChevronRight, X, Save,
   Image as ImageIcon, Package, DollarSign,
   AlertTriangle, BookOpen, RefreshCw,
-  Book as BookIcon  // Rename Book to BookIcon
+  Book as BookIcon
 } from 'lucide-react';
 
 interface Book {
@@ -50,14 +50,21 @@ export default function BooksPage() {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  
+  // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+
+  // Book states
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [viewingBook, setViewingBook] = useState<Book | null>(null);
   const [deletingBook, setDeletingBook] = useState<Book | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -75,7 +82,126 @@ export default function BooksPage() {
     cover_image: ''
   });
 
-  // Summary stats
+  // ===== FORM HANDLING FUNCTIONS =====
+  
+  // Update form data and track changes
+  const updateFormData = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setHasUnsavedChanges(true);
+  };
+
+  // Check if form has changes
+  const checkUnsavedChanges = () => {
+    if (editingBook) {
+      const hasChanges = 
+        formData.title !== editingBook.title ||
+        formData.author !== editingBook.author ||
+        formData.isbn !== (editingBook.isbn || '') ||
+        formData.category_id !== (editingBook.category_id?.toString() || '') ||
+        formData.price !== editingBook.price.toString() ||
+        formData.stock_quantity !== editingBook.stock_quantity.toString() ||
+        formData.minimum_stock !== (editingBook.minimum_stock?.toString() || '5') ||
+        formData.description !== (editingBook.description || '') ||
+        formData.publisher !== (editingBook.publisher || '') ||
+        formData.edition !== (editingBook.edition || '') ||
+        formData.publication_year !== (editingBook.publication_year?.toString() || '') ||
+        formData.cover_image !== (editingBook.cover_image || '');
+      return hasChanges;
+    } else {
+      return (
+        formData.title.trim() !== '' ||
+        formData.author.trim() !== '' ||
+        formData.isbn.trim() !== '' ||
+        formData.category_id !== '' ||
+        formData.price !== '' ||
+        formData.stock_quantity !== '' ||
+        formData.description.trim() !== '' ||
+        formData.publisher.trim() !== '' ||
+        formData.edition.trim() !== '' ||
+        formData.publication_year !== '' ||
+        formData.cover_image !== ''
+      );
+    }
+  };
+
+  // ===== MODAL OPEN/CLOSE FUNCTIONS =====
+  
+  // Open Add Modal
+  const openAddModal = () => {
+    setEditingBook(null);
+    resetForm();
+    setHasUnsavedChanges(false);
+    setIsModalOpen(true);
+  };
+
+  // Open Edit Modal
+  const openEditModal = (book: Book) => {
+    setEditingBook(book);
+    setFormData({
+      title: book.title,
+      author: book.author,
+      isbn: book.isbn || '',
+      category_id: book.category_id?.toString() || '',
+      price: book.price.toString(),
+      stock_quantity: book.stock_quantity.toString(),
+      minimum_stock: book.minimum_stock?.toString() || '5',
+      description: book.description || '',
+      publisher: book.publisher || '',
+      edition: book.edition || '',
+      publication_year: book.publication_year?.toString() || '',
+      cover_image: book.cover_image || ''
+    });
+    setHasUnsavedChanges(false);
+    setIsModalOpen(true);
+  };
+
+  // Handle Close Modal (checks for unsaved changes)
+  const handleCloseModal = () => {
+    if (hasUnsavedChanges && checkUnsavedChanges()) {
+      setShowDiscardModal(true);
+    } else {
+      closeModal();
+    }
+  };
+
+  // Close Modal (force close without checking)
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingBook(null);
+    resetForm();
+    setHasUnsavedChanges(false);
+  };
+
+  // Handle Discard (discard changes and close)
+  const handleDiscard = () => {
+    setShowDiscardModal(false);
+    closeModal();
+  };
+
+  // Handle Continue Editing (stay in form)
+  const handleContinueEditing = () => {
+    setShowDiscardModal(false);
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      author: '',
+      isbn: '',
+      category_id: '',
+      price: '',
+      stock_quantity: '',
+      minimum_stock: '5',
+      description: '',
+      publisher: '',
+      edition: '',
+      publication_year: '',
+      cover_image: ''
+    });
+  };
+
+  // ===== SUMMARY STATS =====
   const stats = useMemo(() => {
     const totalBooks = filteredBooks.length;
     const totalStock = filteredBooks.reduce((sum, b) => sum + b.stock_quantity, 0);
@@ -85,13 +211,12 @@ export default function BooksPage() {
     return { totalBooks, totalStock, inventoryValue, lowStock, outOfStock };
   }, [filteredBooks]);
 
-  // Fetch data
+  // ===== FETCH DATA =====
   useEffect(() => {
     fetchBooks();
     fetchCategories();
   }, []);
 
-  // Apply filters and sorting
   useEffect(() => {
     applyFiltersAndSort();
   }, [books, search, categoryFilter, stockFilter, sortBy]);
@@ -122,7 +247,6 @@ export default function BooksPage() {
   const applyFiltersAndSort = () => {
     let result = [...books];
 
-    // Search filter
     if (search) {
       const searchLower = search.toLowerCase();
       result = result.filter(book =>
@@ -133,14 +257,12 @@ export default function BooksPage() {
       );
     }
 
-    // Category filter
     if (categoryFilter !== 'all') {
       result = result.filter(book => 
         book.category_name?.toLowerCase() === categoryFilter.toLowerCase()
       );
     }
 
-    // Stock filter
     if (stockFilter === 'in_stock') {
       result = result.filter(book => book.stock_quantity >= 6);
     } else if (stockFilter === 'low_stock') {
@@ -149,7 +271,6 @@ export default function BooksPage() {
       result = result.filter(book => book.stock_quantity === 0);
     }
 
-    // Sort
     switch (sortBy) {
       case 'newest':
         result.sort((a, b) => new Date(b.date_added).getTime() - new Date(a.date_added).getTime());
@@ -172,7 +293,7 @@ export default function BooksPage() {
     setCurrentPage(1);
   };
 
-  // Pagination
+  // ===== PAGINATION =====
   const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, filteredBooks.length);
@@ -183,156 +304,102 @@ export default function BooksPage() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // CRUD Operations
+  // ===== CRUD OPERATIONS =====
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!formData.title.trim()) {
-    showNotification('error', 'Title is required');
-    return;
-  }
-
-  try {
-    const url = editingBook ? `/api/books/${editingBook.id}` : '/api/books';
-    const method = editingBook ? 'PUT' : 'POST';
-
-    const payload = {
-      title: formData.title.trim(),
-      author: formData.author.trim(),
-      isbn: formData.isbn.trim() || null,
-      category_id: formData.category_id ? parseInt(formData.category_id) : null,
-      price: parseFloat(formData.price),
-      stock_quantity: parseInt(formData.stock_quantity),
-      minimum_stock: parseInt(formData.minimum_stock || '5'),
-      description: formData.description.trim() || null,
-      publisher: formData.publisher.trim() || null,
-      edition: formData.edition.trim() || null,
-      publication_year: formData.publication_year ? parseInt(formData.publication_year) : null,
-    };
-
-    console.log('📤 Sending request:', { url, method, payload });
-
-    const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    // Check if response is ok
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
-      let errorMessage = 'Failed to save book';
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.error || errorMessage;
-      } catch {
-        errorMessage = errorText || errorMessage;
-      }
-      throw new Error(errorMessage);
+    if (!formData.title.trim()) {
+      showNotification('error', 'Title is required');
+      return;
     }
 
-    const data = await response.json();
-    console.log('✅ Save success:', data);
+    try {
+      const url = editingBook ? `/api/books/${editingBook.id}` : '/api/books';
+      const method = editingBook ? 'PUT' : 'POST';
 
-    setIsModalOpen(false);
-    setEditingBook(null);
-    resetForm();
-    await fetchBooks();
-    showNotification('success', editingBook ? 'Book updated successfully' : 'Book added successfully');
-    
-  } catch (error: any) {
-    console.error('❌ Save error:', error);
-    showNotification('error', error.message || 'Error saving book');
-  }
-};
+      const payload = {
+        title: formData.title.trim(),
+        author: formData.author.trim(),
+        isbn: formData.isbn.trim() || null,
+        category_id: formData.category_id ? parseInt(formData.category_id) : null,
+        price: parseFloat(formData.price),
+        stock_quantity: parseInt(formData.stock_quantity),
+        minimum_stock: parseInt(formData.minimum_stock || '5'),
+        description: formData.description.trim() || null,
+        publisher: formData.publisher.trim() || null,
+        edition: formData.edition.trim() || null,
+        publication_year: formData.publication_year ? parseInt(formData.publication_year) : null,
+      };
 
-  const handleDelete = async () => {
-  if (!deletingBook) {
-    showNotification('error', 'No book selected for deletion');
-    return;
-  }
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-  const bookId = deletingBook.id;
-  if (!bookId) {
-    showNotification('error', 'Invalid book ID');
-    return;
-  }
-
-  console.log('🗑️ Deleting book ID:', bookId);
-
-  setDeleteLoading(true);
-  try {
-    const response = await fetch(`/api/books/${bookId}`, {
-      method: 'DELETE',
-    });
-
-    // Check if response is ok
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
-      let errorMessage = 'Failed to delete book';
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.error || errorMessage;
-      } catch {
-        errorMessage = errorText || errorMessage;
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = 'Failed to save book';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
-      throw new Error(errorMessage);
+
+      closeModal();
+      await fetchBooks();
+      showNotification('success', editingBook ? 'Book updated successfully' : 'Book added successfully');
+      
+    } catch (error: any) {
+      console.error('❌ Save error:', error);
+      showNotification('error', error.message || 'Error saving book');
     }
-
-    const data = await response.json();
-    console.log('✅ Delete success:', data);
-
-    setIsDeleteModalOpen(false);
-    setDeletingBook(null);
-    showNotification('success', `Book deleted successfully`);
-    
-    // Refresh the list
-    await fetchBooks();
-    
-  } catch (error: any) {
-    console.error('❌ Delete error:', error);
-    showNotification('error', error.message || 'Error deleting book');
-  } finally {
-    setDeleteLoading(false);
-  }
-};
-
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      author: '',
-      isbn: '',
-      category_id: '',
-      price: '',
-      stock_quantity: '',
-      minimum_stock: '5',
-      description: '',
-      publisher: '',
-      edition: '',
-      publication_year: '',
-      cover_image: ''
-    });
   };
 
-  const openEditModal = (book: Book) => {
-    setEditingBook(book);
-    setFormData({
-      title: book.title,
-      author: book.author,
-      isbn: book.isbn || '',
-      category_id: book.category_id?.toString() || '',
-      price: book.price.toString(),
-      stock_quantity: book.stock_quantity.toString(),
-      minimum_stock: book.minimum_stock?.toString() || '5',
-      description: book.description || '',
-      publisher: book.publisher || '',
-      edition: book.edition || '',
-      publication_year: book.publication_year?.toString() || '',
-      cover_image: book.cover_image || ''
-    });
-    setIsModalOpen(true);
+  const handleDelete = async () => {
+    if (!deletingBook) {
+      showNotification('error', 'No book selected for deletion');
+      return;
+    }
+
+    const bookId = deletingBook.id;
+    if (!bookId) {
+      showNotification('error', 'Invalid book ID');
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const response = await fetch(`/api/books/${bookId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = 'Failed to delete book';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      setIsDeleteModalOpen(false);
+      setDeletingBook(null);
+      showNotification('success', 'Book deleted successfully');
+      await fetchBooks();
+      
+    } catch (error: any) {
+      console.error('❌ Delete error:', error);
+      showNotification('error', error.message || 'Error deleting book');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const openViewModal = (book: Book) => {
@@ -341,7 +408,6 @@ export default function BooksPage() {
   };
 
   const openDeleteModal = (book: Book) => {
-    console.log('🗑️ Opening delete modal for book:', book);
     setDeletingBook(book);
     setIsDeleteModalOpen(true);
   };
@@ -401,11 +467,7 @@ export default function BooksPage() {
             Refresh
           </button>
           <button
-            onClick={() => {
-              setEditingBook(null);
-              resetForm();
-              setIsModalOpen(true);
-            }}
+            onClick={openAddModal}  // ← FIXED: Using openAddModal
             className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-all duration-300 shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40"
           >
             <Plus size={20} /> Add Book
@@ -413,7 +475,7 @@ export default function BooksPage() {
         </div>
       </div>
 
-      {/* Stats Summary - Using StatsCards component */}
+      {/* Stats Summary */}
       <StatsCards 
         variant="compact"
         stats={[
@@ -474,7 +536,6 @@ export default function BooksPage() {
       {/* Filters */}
       <div className="bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-700/50 p-6 mb-6">
         <div className="flex flex-wrap gap-4 items-end">
-          {/* Search */}
           <div className="flex-1 min-w-[200px]">
             <label className="block text-gray-400 text-sm font-medium mb-1.5">Search</label>
             <div className="relative">
@@ -489,7 +550,6 @@ export default function BooksPage() {
             </div>
           </div>
 
-          {/* Category Filter */}
           <div className="min-w-[150px]">
             <label className="block text-gray-400 text-sm font-medium mb-1.5">Category</label>
             <select
@@ -504,7 +564,6 @@ export default function BooksPage() {
             </select>
           </div>
 
-          {/* Stock Filter */}
           <div className="min-w-[130px]">
             <label className="block text-gray-400 text-sm font-medium mb-1.5">Stock</label>
             <select
@@ -519,7 +578,6 @@ export default function BooksPage() {
             </select>
           </div>
 
-          {/* Sort */}
           <div className="min-w-[150px]">
             <label className="block text-gray-400 text-sm font-medium mb-1.5">Sort By</label>
             <select
@@ -698,7 +756,7 @@ export default function BooksPage() {
         )}
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* ===== ADD/EDIT MODAL ===== */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-gray-700/50">
@@ -707,11 +765,7 @@ export default function BooksPage() {
                 {editingBook ? 'Edit Book' : 'Add New Book'}
               </h2>
               <button
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setEditingBook(null);
-                  resetForm();
-                }}
+                onClick={handleCloseModal}  // ← FIXED: Using handleCloseModal
                 className="text-gray-400 hover:text-white transition"
               >
                 <X size={24} />
@@ -726,7 +780,7 @@ export default function BooksPage() {
                     type="text"
                     required
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    onChange={(e) => updateFormData('title', e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -736,7 +790,7 @@ export default function BooksPage() {
                     type="text"
                     required
                     value={formData.author}
-                    onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+                    onChange={(e) => updateFormData('author', e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -746,7 +800,7 @@ export default function BooksPage() {
                     type="text"
                     required
                     value={formData.isbn}
-                    onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+                    onChange={(e) => updateFormData('isbn', e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="978-0-123-45678-9"
                   />
@@ -755,7 +809,7 @@ export default function BooksPage() {
                   <label className="block text-sm font-medium text-gray-300 mb-1">Category</label>
                   <select
                     value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                    onChange={(e) => updateFormData('category_id', e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Category</option>
@@ -771,7 +825,7 @@ export default function BooksPage() {
                     step="0.01"
                     required
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    onChange={(e) => updateFormData('price', e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -781,7 +835,7 @@ export default function BooksPage() {
                     type="number"
                     required
                     value={formData.stock_quantity}
-                    onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                    onChange={(e) => updateFormData('stock_quantity', e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -790,7 +844,7 @@ export default function BooksPage() {
                   <input
                     type="text"
                     value={formData.publisher}
-                    onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
+                    onChange={(e) => updateFormData('publisher', e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -799,7 +853,7 @@ export default function BooksPage() {
                   <input
                     type="number"
                     value={formData.publication_year}
-                    onChange={(e) => setFormData({ ...formData, publication_year: e.target.value })}
+                    onChange={(e) => updateFormData('publication_year', e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -808,7 +862,7 @@ export default function BooksPage() {
                 <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) => updateFormData('description', e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -823,17 +877,49 @@ export default function BooksPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setEditingBook(null);
-                    resetForm();
-                  }}
+                  onClick={handleCloseModal}  // ← FIXED: Using handleCloseModal
                   className="flex-1 bg-gray-700/50 text-white py-2.5 rounded-xl hover:bg-gray-600/50 transition"
                 >
                   Cancel
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== DISCARD CHANGES MODAL ===== */}
+      {showDiscardModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-md border border-gray-700/50">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-yellow-900/50 p-3 rounded-full">
+                <AlertTriangle className="text-yellow-400" size={28} />
+              </div>
+              <h2 className="text-xl font-bold text-white">Discard Changes?</h2>
+            </div>
+
+            <p className="text-gray-300 mb-2">
+              You have unsaved changes.
+            </p>
+            <p className="text-gray-400 text-sm mb-6">
+              Are you sure you want to close this form? Your changes will be lost.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleContinueEditing}
+                className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl hover:bg-blue-700 transition"
+              >
+                Continue Editing
+              </button>
+              <button
+                onClick={handleDiscard}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-xl hover:bg-red-700 transition"
+              >
+                Discard
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -965,10 +1051,7 @@ export default function BooksPage() {
 
             <div className="flex gap-3">
               <button
-                onClick={() => {
-                  console.log('🗑️ Delete button clicked, book ID:', deletingBook.id);
-                  handleDelete();
-                }}
+                onClick={handleDelete}
                 disabled={deleteLoading}
                 className={`flex-1 py-2.5 rounded-xl transition flex items-center justify-center gap-2 ${
                   deleteLoading

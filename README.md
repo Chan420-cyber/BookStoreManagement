@@ -122,9 +122,13 @@ http://localhost:3000
 
 ![Categories](screenshots/categories.png)
 
-### Inventory
+### Customers
 
-![Settings](screenshots/settings.png)
+![Customers](screenshots/customers.png)
+
+<!-- ### Settings
+
+![Settings](screenshots/settings.png) -->
 
 ---
 

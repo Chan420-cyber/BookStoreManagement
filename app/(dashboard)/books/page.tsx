@@ -2,6 +2,9 @@
 
 import StatsCards from '@/components/ui/stats-cards';
 import { useState, useEffect, useMemo } from 'react';
+
+import { useSearchParams } from 'next/navigation';
+
 import { 
   Plus, Search, Edit2, Trash2, Eye, 
   ChevronLeft, ChevronRight, X, Save,
@@ -39,6 +42,8 @@ type SortOption = 'newest' | 'oldest' | 'price_low' | 'price_high' | 'stock_high
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';
 
 export default function BooksPage() {
+
+  const searchParams = useSearchParams();
   // State
   const [books, setBooks] = useState<Book[]>([]);
   const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
@@ -215,7 +220,14 @@ export default function BooksPage() {
   useEffect(() => {
     fetchBooks();
     fetchCategories();
-  }, []);
+
+    //check if there's a category parameter in the URL
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      setCategoryFilter(categoryParam);
+    }
+
+  }, [searchParams]);
 
   useEffect(() => {
     applyFiltersAndSort();

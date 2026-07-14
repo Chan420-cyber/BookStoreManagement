@@ -49,7 +49,7 @@ interface FormData {
   lowStockThreshold: number;
 }
 
-type Tab = 'profile' | 'security' | 'notifications' | 'appearance' | 'general';
+type Tab = 'profile' | 'security' | 'notifications' | 'appearance' | 'general' | 'users';
 
 // ===== MAIN COMPONENT =====
 export default function SettingsPage() {
@@ -252,13 +252,14 @@ export default function SettingsPage() {
     return strengths[score] || strengths[0];
   };
 
-  // ===== TABS CONFIGURATION =====
+  // ===== Add tabs array ===== 
   const tabs = [
     { id: 'profile' as Tab, label: 'Profile', icon: User },
     { id: 'security' as Tab, label: 'Security', icon: Shield },
     { id: 'notifications' as Tab, label: 'Notifications', icon: Bell },
     { id: 'appearance' as Tab, label: 'Appearance', icon: Palette },
     { id: 'general' as Tab, label: 'General', icon: Globe },
+    { id: 'users' as Tab, label: 'Users', icon: Users }, // ← NEW
   ];
 
   return (
@@ -407,6 +408,130 @@ export default function SettingsPage() {
                     className="w-full px-4 py-2.5 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     placeholder="Tell us a little about yourself..."
                   />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== USERS TAB ===== */}
+          {activeTab === 'users' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-white mb-2">User Management</h2>
+                <p className="text-gray-400 text-sm">Create and manage staff accounts</p>
+              </div>
+
+              <div className="bg-gray-700/30 rounded-xl border border-gray-700/50 p-6">
+                <h3 className="text-white font-medium mb-4">Create New User</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Full Name *</label>
+                    <input
+                      type="text"
+                      id="newUserName"
+                      placeholder="John Doe"
+                      className="w-full px-4 py-2.5 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Email *</label>
+                    <input
+                      type="email"
+                      id="newUserEmail"
+                      placeholder="john@bookstore.com"
+                      className="w-full px-4 py-2.5 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Password *</label>
+                    <input
+                      type="password"
+                      id="newUserPassword"
+                      placeholder="Min 8 characters"
+                      className="w-full px-4 py-2.5 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Role</label>
+                    <select
+                      id="newUserRole"
+                      className="w-full px-4 py-2.5 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="staff">Staff</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Phone</label>
+                    <input
+                      type="tel"
+                      id="newUserPhone"
+                      placeholder="+1 234 567 8900"
+                      className="w-full px-4 py-2.5 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    const name = (document.getElementById('newUserName') as HTMLInputElement)?.value;
+                    const email = (document.getElementById('newUserEmail') as HTMLInputElement)?.value;
+                    const password = (document.getElementById('newUserPassword') as HTMLInputElement)?.value;
+                    const role = (document.getElementById('newUserRole') as HTMLSelectElement)?.value;
+                    const phone = (document.getElementById('newUserPhone') as HTMLInputElement)?.value;
+
+                    if (!name || !email || !password) {
+                      alert('Please fill in all required fields');
+                      return;
+                    }
+
+                    try {
+                      const response = await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, email, password, role, phone }),
+                      });
+
+                      const data = await response.json();
+                      if (response.ok) {
+                        alert('User created successfully!');
+                        // Clear form
+                        (document.getElementById('newUserName') as HTMLInputElement).value = '';
+                        (document.getElementById('newUserEmail') as HTMLInputElement).value = '';
+                        (document.getElementById('newUserPassword') as HTMLInputElement).value = '';
+                        (document.getElementById('newUserPhone') as HTMLInputElement).value = '';
+                      } else {
+                        alert(data.error || 'Failed to create user');
+                      }
+                    } catch (error) {
+                      alert('Error creating user');
+                    }
+                  }}
+                  className="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+                >
+                  Create User
+                </button>
+              </div>
+
+              {/* List existing users */}
+              <div className="bg-gray-700/30 rounded-xl border border-gray-700/50 p-6">
+                <h3 className="text-white font-medium mb-4">Existing Users</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-700/50 border-b border-gray-600/50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase">Name</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase">Email</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase">Role</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="userList" className="divide-y divide-gray-700/50">
+                      {/* Users will be populated here */}
+                      <tr>
+                        <td className="px-4 py-3 text-gray-300 text-sm">Loading users...</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

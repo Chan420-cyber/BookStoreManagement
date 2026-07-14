@@ -1,34 +1,65 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { useState, ReactNode, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   BookOpen, 
   FolderTree, 
-  Package, 
   Users, 
   Settings,
   LogOut,
-  Search,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  User
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    // Fetch user data
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.id) {
+          setUser({
+            name: data.full_name || data.username || 'Admin User',
+            email: data.email || 'admin@bookstore.com'
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/');
+    router.refresh();
+  };
 
   const menuItems = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Books', href: '/books', icon: BookOpen },
     { name: 'Categories', href: '/categories', icon: FolderTree },
-    // { name: 'Inventory', href: '/inventory', icon: Package },
     { name: 'Customers', href: '/customers', icon: Users },
-    { name: 'Users', href: '/users', icon: Users },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
+
+  // Get user initials
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <div className="flex h-screen">
@@ -54,29 +85,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        {/* Search Bar */}
-        {/* <div className={`p-4 border-b border-gray-700 ${!isSidebarOpen && 'px-2'}`}>
-          <div className="relative">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 ${!isSidebarOpen && 'hidden'}`} size={18} />
-            <input
-              type="text"
-              placeholder={isSidebarOpen ? "Search books, authors.." : ""}
-              className={`bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                isSidebarOpen ? 'w-full pl-9 pr-3 py-2' : 'w-full px-2 py-2'
-              }`}
-            />
-          </div>
-        </div> */}
-
         {/* User Info */}
         <div className={`p-4 border-b border-gray-700 flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
           <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-semibold">AB</span>
+            <span className="text-white font-semibold text-sm">
+              {user ? getInitials(user.name) : 'U'}
+            </span>
           </div>
-          {isSidebarOpen && (
-            <div>
-              <p className="font-medium text-white">Admin User</p>
-              <p className="text-xs text-gray-400">admin@bookstore.com</p>
+          {isSidebarOpen && user && (
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-white text-sm truncate">{user.name}</p>
+              <p className="text-xs text-gray-400 truncate">{user.email}</p>
             </div>
           )}
         </div>
@@ -109,6 +128,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {/* Logout Button */}
         <div className="p-4 border-t border-gray-700">
           <button 
+            onClick={handleLogout}
             className={`flex items-center gap-3 px-4 py-2 w-full text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition ${
               !isSidebarOpen && 'justify-center'
             }`}
@@ -120,8 +140,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content - no need for bg-gray-900 here because root layout handles it */}
-      <main className="flex-1 overflow-y-auto">
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto bg-gray-900">
         {children}
       </main>
     </div>

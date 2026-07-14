@@ -26,6 +26,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     { name: 'Categories', href: '/categories', icon: FolderTree },
     // { name: 'Inventory', href: '/inventory', icon: Package },
     { name: 'Customers', href: '/customers', icon: Users },
+    { name: 'Users', href: '/users', icon: Users },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 

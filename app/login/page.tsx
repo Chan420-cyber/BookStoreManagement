@@ -30,7 +30,8 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
-      router.push('/dashboard');
+      // Redirect to dashboard
+      router.push('/');
       router.refresh();
     } catch (error: any) {
       setError(error.message || 'Invalid email or password');

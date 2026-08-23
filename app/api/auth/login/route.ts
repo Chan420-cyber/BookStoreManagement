@@ -7,9 +7,6 @@ export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();
 
-    console.log('========================================');
-    console.log('🔐 Login attempt for:', email);
-
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
@@ -17,7 +14,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Find user by email - only select columns that exist
+    // Find user by email
     const [users] = await pool.query(
       `SELECT 
         id, 
@@ -30,11 +27,9 @@ export async function POST(request: Request) {
         created_at, 
         last_login 
       FROM users 
-      WHERE email = ?`,
+      WHERE email = ? AND is_active = 1`,
       [email]
     );
-
-    console.log('📊 Users found:', users.length);
 
     if (users.length === 0) {
       return NextResponse.json(
@@ -45,23 +40,8 @@ export async function POST(request: Request) {
 
     const user = users[0];
 
-    // Check if user is active
-    if (user.is_active === 0) {
-      return NextResponse.json(
-        { error: 'Account is deactivated' },
-        { status: 401 }
-      );
-    }
-
     // Verify password
-    let isPasswordValid = false;
-    try {
-      isPasswordValid = await bcrypt.compare(password, user.password);
-      console.log('Password matches:', isPasswordValid);
-    } catch (compareError) {
-      console.error('bcrypt compare error:', compareError);
-    }
-
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
@@ -87,16 +67,16 @@ export async function POST(request: Request) {
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
-    // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
+    // Create response with cookie
     const response = NextResponse.json({
       success: true,
       user: userWithoutPassword,
       token
     });
 
-    // Set cookie
+    // Set the cookie
     response.cookies.set('auth_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -105,21 +85,11 @@ export async function POST(request: Request) {
       path: '/',
     });
 
-    console.log('✅ Login successful for:', user.email);
-    console.log('========================================');
-
     return response;
-  } catch (error: any) {
-    console.error('❌ Login Error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      errno: error.errno,
-      sqlMessage: error.sqlMessage
-    });
-    
+  } catch (error) {
+    console.error('Login Error:', error);
     return NextResponse.json(
-      { error: 'Failed to login: ' + error.message },
+      { error: 'Failed to login' },
       { status: 500 }
     );
   }

@@ -1,10 +1,9 @@
 'use client';
 
+import { Suspense } from "react";
 import StatsCards from '@/components/ui/stats-cards';
 import { useState, useEffect, useMemo } from 'react';
-
 import { useSearchParams } from 'next/navigation';
-
 import { 
   Plus, Search, Edit2, Trash2, Eye, 
   ChevronLeft, ChevronRight, X, Save,
@@ -12,8 +11,6 @@ import {
   AlertTriangle, BookOpen, RefreshCw,
   Book as BookIcon
 } from 'lucide-react';
-
-export const dynamic = 'force-dynamic';
 
 interface Book {
   id: number;
@@ -43,9 +40,10 @@ interface Category {
 type SortOption = 'newest' | 'oldest' | 'price_low' | 'price_high' | 'stock_high';
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';
 
-export default function BooksPage() {
-
+// 1. Rename your main logic to BooksContent
+function BooksContent() {
   const searchParams = useSearchParams();
+  
   // State
   const [books, setBooks] = useState<Book[]>([]);
   const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
@@ -90,17 +88,14 @@ export default function BooksPage() {
   });
 
   // ===== FORM HANDLING FUNCTIONS =====
-  
-  // Update form data and track changes
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setHasUnsavedChanges(true);
   };
 
-  // Check if form has changes
   const checkUnsavedChanges = () => {
     if (editingBook) {
-      const hasChanges = 
+      return (
         formData.title !== editingBook.title ||
         formData.author !== editingBook.author ||
         formData.isbn !== (editingBook.isbn || '') ||
@@ -112,8 +107,8 @@ export default function BooksPage() {
         formData.publisher !== (editingBook.publisher || '') ||
         formData.edition !== (editingBook.edition || '') ||
         formData.publication_year !== (editingBook.publication_year?.toString() || '') ||
-        formData.cover_image !== (editingBook.cover_image || '');
-      return hasChanges;
+        formData.cover_image !== (editingBook.cover_image || '')
+      );
     } else {
       return (
         formData.title.trim() !== '' ||
@@ -132,8 +127,6 @@ export default function BooksPage() {
   };
 
   // ===== MODAL OPEN/CLOSE FUNCTIONS =====
-  
-  // Open Add Modal
   const openAddModal = () => {
     setEditingBook(null);
     resetForm();
@@ -141,7 +134,6 @@ export default function BooksPage() {
     setIsModalOpen(true);
   };
 
-  // Open Edit Modal
   const openEditModal = (book: Book) => {
     setEditingBook(book);
     setFormData({
@@ -162,7 +154,6 @@ export default function BooksPage() {
     setIsModalOpen(true);
   };
 
-  // Handle Close Modal (checks for unsaved changes)
   const handleCloseModal = () => {
     if (hasUnsavedChanges && checkUnsavedChanges()) {
       setShowDiscardModal(true);
@@ -171,7 +162,6 @@ export default function BooksPage() {
     }
   };
 
-  // Close Modal (force close without checking)
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingBook(null);
@@ -179,18 +169,15 @@ export default function BooksPage() {
     setHasUnsavedChanges(false);
   };
 
-  // Handle Discard (discard changes and close)
   const handleDiscard = () => {
     setShowDiscardModal(false);
     closeModal();
   };
 
-  // Handle Continue Editing (stay in form)
   const handleContinueEditing = () => {
     setShowDiscardModal(false);
   };
 
-  // Reset form
   const resetForm = () => {
     setFormData({
       title: '',
@@ -223,12 +210,10 @@ export default function BooksPage() {
     fetchBooks();
     fetchCategories();
 
-    //check if there's a category parameter in the URL
     const categoryParam = searchParams.get('category');
     if (categoryParam) {
       setCategoryFilter(categoryParam);
     }
-
   }, [searchParams]);
 
   useEffect(() => {
@@ -307,7 +292,6 @@ export default function BooksPage() {
     setCurrentPage(1);
   };
 
-  // ===== PAGINATION =====
   const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, filteredBooks.length);
@@ -481,7 +465,7 @@ export default function BooksPage() {
             Refresh
           </button>
           <button
-            onClick={openAddModal}  // ← FIXED: Using openAddModal
+            onClick={openAddModal}
             className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-all duration-300 shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40"
           >
             <Plus size={20} /> Add Book
@@ -779,7 +763,7 @@ export default function BooksPage() {
                 {editingBook ? 'Edit Book' : 'Add New Book'}
               </h2>
               <button
-                onClick={handleCloseModal}  // ← FIXED: Using handleCloseModal
+                onClick={handleCloseModal}
                 className="text-gray-400 hover:text-white transition"
               >
                 <X size={24} />
@@ -891,7 +875,7 @@ export default function BooksPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleCloseModal}  // ← FIXED: Using handleCloseModal
+                  onClick={handleCloseModal}
                   className="flex-1 bg-gray-700/50 text-white py-2.5 rounded-xl hover:bg-gray-600/50 transition"
                 >
                   Cancel
@@ -1099,5 +1083,14 @@ export default function BooksPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// 2. The default export ONLY wraps BooksContent in Suspense
+export default function BooksPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-400">Loading books...</div>}>
+      <BooksContent />
+    </Suspense>
   );
 }

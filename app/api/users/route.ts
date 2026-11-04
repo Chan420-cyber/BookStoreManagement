@@ -23,15 +23,25 @@ export async function GET(request: Request) {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+    
+    // Only admins can view users
     if (decoded.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
-    // Get all users
+    // Get all users (excluding password)
     const [users] = await pool.query(
-      `SELECT id, username, full_name, email, role, is_active, created_at, last_login 
-       FROM users 
-       ORDER BY id`
+      `SELECT 
+        id, 
+        username, 
+        full_name, 
+        email, 
+        role, 
+        is_active, 
+        created_at, 
+        last_login 
+      FROM users 
+      ORDER BY id`
     );
 
     return NextResponse.json(users);

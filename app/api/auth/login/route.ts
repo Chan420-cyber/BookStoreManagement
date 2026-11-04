@@ -27,7 +27,7 @@ export async function POST(request: Request) {
         created_at, 
         last_login 
       FROM users 
-      WHERE email = ? AND is_active = 1`,
+      WHERE email = ?`,
       [email]
     );
 
@@ -39,6 +39,14 @@ export async function POST(request: Request) {
     }
 
     const user = users[0];
+
+    // Check if user is active
+    if (user.is_active === 0) {
+      return NextResponse.json(
+        { error: 'Account is deactivated' },
+        { status: 401 }
+      );
+    }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -55,13 +63,13 @@ export async function POST(request: Request) {
       [user.id]
     );
 
-    // Generate JWT token
+    // Generate JWT token with role included
     const token = jwt.sign(
       {
         id: user.id,
         email: user.email,
         name: user.full_name || user.username,
-        role: user.role || 'staff'
+        role: user.role || 'staff' // ← Role is included here
       },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }

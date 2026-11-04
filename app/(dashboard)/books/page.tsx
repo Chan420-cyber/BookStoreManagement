@@ -13,6 +13,8 @@ import {
   Book as BookIcon
 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 interface Book {
   id: number;
   title: string;

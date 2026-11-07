@@ -107,6 +107,8 @@ export default function LoginPage() {
               'Sign In'
             )}
           </button>
+          <p className="text-gray-400 text-sm mt-1">Email: new_admin@bookstore.com</p>
+          <p className="text-gray-400 text-sm">Password: admin123</p>
         </form>
 
         <div className="mt-6 pt-4 border-t border-gray-700/50 text-center">

@@ -221,29 +221,61 @@ function BooksContent() {
   }, [books, search, categoryFilter, stockFilter, sortBy]);
 
   const fetchBooks = async () => {
-    try {
-      const res = await fetch('/api/books');
-      const data = await res.json();
-      setBooks(data);
-    } catch (error) {
-      console.error('Error fetching books:', error);
-      showNotification('error', 'Failed to fetch books');
-    } finally {
-      setLoading(false);
+  try {
+    const res = await fetch('/api/books');
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
     }
-  };
+    
+    const data = await res.json();
+    
+    // Check if data is an array
+    if (Array.isArray(data)) {
+      setBooks(data);
+    } else {
+      console.error('Expected array but got:', typeof data, data);
+      setBooks([]); // Set empty array instead of invalid data
+    }
+  } catch (error) {
+    console.error('Error fetching books:', error);
+    setBooks([]); // Set empty array on error
+    showNotification('error', 'Failed to fetch books');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchCategories = async () => {
-    try {
-      const res = await fetch('/api/categories');
-      const data = await res.json();
-      setCategories(data);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
+  try {
+    const res = await fetch('/api/categories');
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
     }
-  };
+    
+    const data = await res.json();
+    
+    // Check if data is an array
+    if (Array.isArray(data)) {
+      setCategories(data);
+    } else {
+      console.error('Expected categories array but got:', typeof data, data);
+      setCategories([]); // Set empty array instead of invalid data
+    }
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    setCategories([]); // Set empty array on error
+  }
+};
 
   const applyFiltersAndSort = () => {
+    if (!Array.isArray(books)) {
+    console.error('books is not an array:', books);
+    setFilteredBooks([]);
+    return;
+    }
+
     let result = [...books];
 
     if (search) {
@@ -556,7 +588,7 @@ function BooksContent() {
               className="w-full px-4 py-2.5 bg-gray-700/50 text-white border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Categories</option>
-              {categories.map(cat => (
+              {Array.isArray(categories) && categories.map(cat => (
                 <option key={cat.id} value={cat.name}>{cat.name}</option>
               ))}
             </select>

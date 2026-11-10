@@ -31,10 +31,10 @@ export async function GET() {
       ORDER BY b.id DESC
     `);
 
-    return NextResponse.json(books);
+    return NextResponse.json(books || []);
   } catch (error) {
     console.error('Books API Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch books' }, { status: 500 });
+    return NextResponse.json([]);
   }
 }
 

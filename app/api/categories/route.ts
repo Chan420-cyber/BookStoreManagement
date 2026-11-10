@@ -62,12 +62,9 @@ export async function POST(request: Request) {
       [result.insertId]
     );
 
-    return NextResponse.json(newCategory[0], { status: 201 });
+    return NextResponse.json(newCategory || []);
   } catch (error) {
     console.error('Categories POST Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to create category' },
-      { status: 500 }
-    );
+    return NextResponse.json([]);     
   }
 }
